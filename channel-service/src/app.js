@@ -3,7 +3,19 @@ const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
 const { v4: uuidv4 } = require("uuid");
+const axios = require("axios");
 const { simulateLifecycle } = require("./simulator/lifecycle");
+
+const WA_SERVICE_URL = process.env.WHATSAPP_SERVICE_URL || "http://localhost:3003";
+
+async function tryRealWhatsApp(phone, message, message_id) {
+  try {
+    const r = await axios.post(`${WA_SERVICE_URL}/send`, { to: phone, message, message_id }, { timeout: 8000 });
+    return r.data?.success === true;
+  } catch {
+    return false; // fall back to simulation
+  }
+}
 
 const app = express();
 app.use(cors());
@@ -26,8 +38,14 @@ app.post("/send", async (req, res) => {
 
   console.log(`[CHANNEL] Sending ${channel} to ${recipient} | msg_id: ${channel_message_id}`);
 
-  // simulate async lifecycle (non-blocking)
-  simulateLifecycle({ channel_message_id, campaign_id, customer_id, channel });
+  if (channel === "whatsapp") {
+    // Try real WhatsApp first; fall back to simulation on failure
+    tryRealWhatsApp(recipient, message, channel_message_id).then((sent) => {
+      if (!sent) simulateLifecycle({ channel_message_id, campaign_id, customer_id, channel });
+    });
+  } else {
+    simulateLifecycle({ channel_message_id, campaign_id, customer_id, channel });
+  }
 
   res.status(202).json({
     channel_message_id,

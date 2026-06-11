@@ -16,6 +16,9 @@ const webhookRoutes = require("./routes/webhooks");
 const offersRoutes = require("./routes/offers");
 const journeysRoutes = require("./routes/journeys");
 const productsRoutes = require("./routes/products");
+const personasRoutes = require("./routes/personas");
+const whatsappRoutes = require("./routes/whatsapp");
+const monitorRoutes = require("./routes/monitor");
 
 const app = express();
 const server = http.createServer(app);
@@ -28,7 +31,8 @@ app.use(cors());
 app.use(morgan("dev"));
 app.use(express.json({ limit: "10mb" }));
 
-// attach io to req so routes can emit
+// attach io to req so routes can emit; also set on app for direct access
+app.set("io", io);
 app.use((req, _res, next) => {
   req.io = io;
   next();
@@ -44,6 +48,9 @@ app.use("/api/webhooks", webhookRoutes);
 app.use("/api/offers", offersRoutes);
 app.use("/api/journeys", journeysRoutes);
 app.use("/api/products", productsRoutes);
+app.use("/api/personas", personasRoutes);
+app.use("/api/whatsapp", whatsappRoutes);
+app.use("/api/monitor", monitorRoutes);
 
 app.get("/health", (_req, res) => res.json({ status: "ok" }));
 

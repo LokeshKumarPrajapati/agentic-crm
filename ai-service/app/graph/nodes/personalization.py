@@ -5,7 +5,8 @@ from app.config import settings
 from app.prompts.personalization_prompt import PERSONALIZATION_PROMPT
 from app.graph.state import CRMAgentState
 from app.tools.mongo_tools import get_customer_profile
-from app.tools.offer_tools import select_best_offer
+from app.tools.offer_tools import select_best_offer, generate_offer_code
+from app.tools.persona_tools import get_persona_recommendation
 from app.utils.callbacks import post_progress
 from pymongo import MongoClient
 
@@ -48,12 +49,35 @@ async def personalize_one(
     except Exception:
         profile = {}
 
-    # get best offer for this customer + goal
+    # fetch AI persona — gives us recommended action, offer sensitivity, best send time
+    persona_raw = get_persona_recommendation.invoke(customer_id)
+    try:
+        persona = json.loads(persona_raw)
+    except Exception:
+        persona = {}
+
+    # use offer_sensitivity from persona to pick offer aggressiveness
     offer_raw = select_best_offer.invoke({"customer_id": customer_id, "campaign_goal": campaign_goal})
     try:
         offer = json.loads(offer_raw)
     except Exception:
         offer = {"offer_text": "an exclusive discount just for you"}
+
+    # if persona has a message hint, prefer it over generic offer text
+    persona_hint = persona.get("message_hint", "")
+    offer_text = persona_hint if persona_hint else offer.get("offer_text", "an exclusive discount")
+
+    # generate unique promo code if this offer has one
+    promo_code = None
+    if offer.get("offer_id"):
+        try:
+            code_raw = generate_offer_code.invoke({
+                "offer_id": offer["offer_id"],
+                "customer_id": customer_id,
+            })
+            promo_code = json.loads(code_raw).get("code")
+        except Exception:
+            pass
 
     name = profile.get("name", "there").split()[0]
     top_cats = profile.get("top_categories", [])
@@ -61,16 +85,24 @@ async def personalize_one(
     rec_product = recommend_product_from_db(top_cats)
     avg_order = int(profile.get("avg_order_value", 1500))
 
+    # use best_send_hour from persona (real ML signal) instead of hardcoded 19
+    best_send_hour = persona.get("best_send_hour") if persona.get("found") else None
+    if best_send_hour is None:
+        best_send_hour = 19
+
     chain = PERSONALIZATION_PROMPT | llm
 
     result = await chain.ainvoke({
         "template_body": template,
         "customer_name": name,
+        "rfm_segment": persona.get("rfm_segment", "Potential"),
+        "persona_action": persona.get("action", "nurture"),
+        "urgency": persona.get("urgency", "medium"),
         "last_category": last_cat,
         "top_categories": ", ".join(top_cats[:3]) if top_cats else "fashion",
         "recommended_product": rec_product,
         "avg_order_value": str(avg_order),
-        "offer_text": offer.get("offer_text", "an exclusive discount"),
+        "offer_text": offer_text,
     })
 
     try:
@@ -85,7 +117,11 @@ async def personalize_one(
         "variant_id": variant_id,
         "personalization_tokens": data.get("personalization_tokens", {}),
         "offer_id": offer.get("offer_id"),
-        "best_send_hour": 19,
+        "promo_code": promo_code,
+        "best_send_hour": best_send_hour,
+        "persona_action": persona.get("action"),
+        "persona_urgency": persona.get("urgency"),
+        "propensity_score": persona.get("propensity_score", 50),
     }
 
 

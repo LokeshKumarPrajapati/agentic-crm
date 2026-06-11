@@ -34,6 +34,9 @@ export const analyticsApi = {
   overview: () => api.get("/analytics/overview"),
   campaigns: (params) => api.get("/analytics/campaigns", { params }),
   channelPerformance: () => api.get("/analytics/channel-performance"),
+  roi: () => api.get("/analytics/roi"),
+  rfmDistribution: () => api.get("/analytics/rfm-distribution"),
+  businessKpis: () => api.get("/analytics/business-kpis"),
 };
 
 export const agentApi = {
@@ -65,6 +68,19 @@ export const productsApi = {
   create: (data) => api.post("/products", data).then((r) => r.data),
   import: (products) => api.post("/products/import", { products }).then((r) => r.data),
   recommend: (customerId) => api.get(`/products/recommend/${customerId}`).then((r) => r.data),
+};
+
+export const whatsappApi = {
+  status: () => api.get("/whatsapp/status"),
+  qr: () => api.get("/whatsapp/qr"),
+  disconnect: () => api.post("/whatsapp/disconnect"),
+};
+
+export const monitorApi = {
+  alerts: (params) => api.get("/monitor/alerts", { params }),
+  run: () => api.post("/monitor/run"),
+  apply: (id) => api.post(`/monitor/alerts/${id}/apply`),
+  dismiss: (id) => api.patch(`/monitor/alerts/${id}/dismiss`),
 };
 
 export default api;

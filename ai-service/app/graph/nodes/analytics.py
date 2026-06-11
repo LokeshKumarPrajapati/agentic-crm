@@ -33,8 +33,8 @@ def analytics_node(state: CRMAgentState) -> dict:
 
     post_progress(state["session_id"], "analytics", "Computing campaign analytics...", step="analyze")
 
-    # wait a moment for some callbacks to arrive (demo)
-    time.sleep(3)
+    # Brief wait so fastest callbacks arrive before we read metrics
+    time.sleep(2)
 
     if not campaign_id:
         post_progress(state["session_id"], "analytics", "No campaign ID — skipping analytics", step="analyze")
@@ -46,6 +46,19 @@ def analytics_node(state: CRMAgentState) -> dict:
         metrics = json.loads(metrics_raw)
     except Exception:
         metrics = {}
+
+    # Skip LLM if no data yet — messages still delivering
+    if metrics.get("sent", 0) == 0:
+        post_progress(state["session_id"], "analytics", "No delivery data yet — campaign running", step="analyze")
+        return {
+            "analytics_report": {
+                "campaign_id": campaign_id,
+                "funnel": metrics,
+                "insights_text": "Campaign dispatched — analytics update as messages are delivered.",
+                "recommendations": [],
+            },
+            "current_step": "optimize",
+        }
 
     # generate insights via LLM
     llm = ChatGoogleGenerativeAI(
@@ -74,16 +87,16 @@ def analytics_node(state: CRMAgentState) -> dict:
         f"Insights: {insights_text}"
     )
 
-    store_analytics_narrative.invoke(
-        narrative,
-        json.dumps({
+    store_analytics_narrative.invoke({
+        "narrative": narrative,
+        "metadata_json": json.dumps({
             "campaign_id": campaign_id,
             "goal": plan.get("goal"),
             "channel": plan.get("channel_preference"),
             "open_rate": metrics.get("open_rate", 0),
             "conversion_rate": metrics.get("conversion_rate", 0),
         }),
-    )
+    })
 
     report = {
         "campaign_id": campaign_id,

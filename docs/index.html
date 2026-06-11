@@ -411,6 +411,8 @@
   <div class="sidebar-section">
     <div class="sidebar-section-label">Features</div>
     <a class="sidebar-link" href="#xeno">Xeno Replica Features</a>
+    <a class="sidebar-link" href="#whatsapp">WhatsApp Integration</a>
+    <a class="sidebar-link" href="#monitor">Campaign Monitor</a>
     <a class="sidebar-link" href="#loyalty">Loyalty Engine</a>
     <a class="sidebar-link" href="#offers">Offers Engine</a>
     <a class="sidebar-link" href="#journeys">Journey Builder</a>
@@ -467,12 +469,12 @@
           <div class="kpi-label">Qdrant Vector Collections</div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-value">13</div>
+          <div class="kpi-value">14</div>
           <div class="kpi-label">MongoDB Schemas</div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-value">60x</div>
-          <div class="kpi-label">Target ROI (Xeno benchmark)</div>
+          <div class="kpi-value">7</div>
+          <div class="kpi-label">Microservices</div>
         </div>
         <div class="kpi-card">
           <div class="kpi-value">6</div>
@@ -516,6 +518,16 @@
           <h4>Real-time agent streaming</h4>
           <p>Socket.io pushes each agent's progress to the UI live. Marketer watches the AI work step by step.</p>
         </div>
+        <div class="card">
+          <div class="card-icon">💬</div>
+          <h4>Real WhatsApp delivery</h4>
+          <p>Baileys QR-scan login. Campaigns with <code>channel=whatsapp</code> send to real phones. Session persists across restarts. Falls back to simulation if disconnected.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🚨</div>
+          <h4>Autonomous Campaign Monitor</h4>
+          <p>LangGraph monitor graph evaluates running campaigns against channel thresholds. Auto-generates diagnosis + improved copy. Resends to non-openers on approval.</p>
+        </div>
       </div>
     </div>
 
@@ -525,43 +537,37 @@
       <h2><span class="h2-num">02 —</span>System Architecture</h2>
 
       <div class="arch-box">
-<span class="c-gray">┌──────────────────────────────────────────────────────────────┐</span>
-<span class="c-gray">│</span>              <span class="c-purple">FRONTEND  (React 18 + Vite)</span>                         <span class="c-gray">│</span>
-<span class="c-gray">│</span>  Dashboard · Customers 360 · Campaigns · Analytics           <span class="c-gray">│</span>
-<span class="c-gray">│</span>  Loyalty · Offers · Journey Builder · AI Agent Chat          <span class="c-gray">│</span>
-<span class="c-gray">└───────────────────────┬──────────────────────────────────────┘</span>
-                        <span class="c-gray">│</span> REST + WebSocket (Socket.io)
-<span class="c-gray">┌───────────────────────▼──────────────────────────────────────┐</span>
-<span class="c-gray">│</span>           <span class="c-blue">BACKEND  (Node / Express)</span>   :3001                  <span class="c-gray">│</span>
-<span class="c-gray">│</span>                                                              <span class="c-gray">│</span>
-<span class="c-gray">│</span>  /customers  /campaigns  /segments  /analytics              <span class="c-gray">│</span>
-<span class="c-gray">│</span>  /loyalty    /offers     /journeys  /personas               <span class="c-gray">│</span>
-<span class="c-gray">│</span>  /products   /agent      /webhooks                          <span class="c-gray">│</span>
-<span class="c-gray">└──────┬────────────────────────────────┬───────────────────────┘</span>
-       <span class="c-gray">│</span> POST /run (fire-and-forget)     <span class="c-gray">│</span> Webhook callbacks
-       <span class="c-gray">│</span>                                 <span class="c-gray">▼</span>
-<span class="c-gray">┌──────▼──────────────┐   ┌──────────────────────────────────────┐</span>
-<span class="c-gray">│</span> <span class="c-purple">AI SERVICE</span> (FastAPI) <span class="c-gray">│</span>   <span class="c-gray">│</span>  <span class="c-amber">CHANNEL SERVICE</span> (Express)  :3002    <span class="c-gray">│</span>
-<span class="c-gray">│</span>    :8000            <span class="c-gray">│</span>   <span class="c-gray">│</span>                                    <span class="c-gray">│</span>
-<span class="c-gray">│</span>                     <span class="c-gray">│</span>   <span class="c-gray">│</span>  Simulates delivery lifecycle:     <span class="c-gray">│</span>
-<span class="c-gray">│</span>  LangGraph          <span class="c-gray">│</span>   <span class="c-gray">│</span>  queued→sent→delivered→           <span class="c-gray">│</span>
-<span class="c-gray">│</span>  ┌──────────────┐   <span class="c-gray">│</span>   <span class="c-gray">│</span>  opened→clicked→converted         <span class="c-gray">│</span>
-<span class="c-gray">│</span>  │  Supervisor  │   <span class="c-gray">│</span>   <span class="c-gray">│</span>  (probabilistic, per channel)      <span class="c-gray">│</span>
-<span class="c-gray">│</span>  │  Segment     │   <span class="c-gray">│</span>   <span class="c-gray">└──────────────────────────────────────┘</span>
-<span class="c-gray">│</span>  │  Campaign    │   <span class="c-gray">│</span>
-<span class="c-gray">│</span>  │  Persona     │◄──┤ MongoDB (pymongo direct)
-<span class="c-gray">│</span>  │  Personalize │   <span class="c-gray">│</span>
-<span class="c-gray">│</span>  │  Channel     │◄──┤ Qdrant (langchain-qdrant)
-<span class="c-gray">│</span>  │  Execute     │   <span class="c-gray">│</span>
-<span class="c-gray">│</span>  │  Analytics   │   <span class="c-gray">│</span> POST /api/agent/progress
-<span class="c-gray">│</span>  │  Optimize    │───┼──────────────────────► Backend → Socket.io → UI
-<span class="c-gray">│</span>  └──────────────┘   <span class="c-gray">│</span>
-<span class="c-gray">└─────────────────────┘</span>
-       <span class="c-gray">│</span>                     <span class="c-gray">│</span>
-<span class="c-gray">┌──────▼──────────────┐  ┌────▼───────────────────┐</span>
-<span class="c-gray">│</span>  <span class="c-green">MongoDB</span>  :27017      <span class="c-gray">│</span>  <span class="c-cyan">│ Qdrant</span>  :6333          <span class="c-gray">│</span>
-<span class="c-gray">│</span>  13 collections     <span class="c-gray">│</span>  <span class="c-gray">│</span> 5 vector collections  <span class="c-gray">│</span>
-<span class="c-gray">└─────────────────────┘</span>  <span class="c-gray">└────────────────────────┘</span>
+<span class="c-gray">┌───────────────────────────────────────────────────────────────────┐</span>
+<span class="c-gray">│</span>                <span class="c-purple">FRONTEND  (React 18 + Vite)</span>                           <span class="c-gray">│</span>
+<span class="c-gray">│</span>  Dashboard · Customers 360 · Campaigns · Analytics               <span class="c-gray">│</span>
+<span class="c-gray">│</span>  Loyalty · Offers · Journey Builder · AI Agent Chat              <span class="c-gray">│</span>
+<span class="c-gray">│</span>  <span class="c-green">WhatsApp Setup</span> · <span class="c-amber">Campaign Monitor</span>                                 <span class="c-gray">│</span>
+<span class="c-gray">└──────────────────────────┬────────────────────────────────────────┘</span>
+                           <span class="c-gray">│</span> REST + Socket.io          <span class="c-green">Socket.io :3003</span>
+<span class="c-gray">┌──────────────────────────▼────────────────────────────────────────┐</span>
+<span class="c-gray">│</span>              <span class="c-blue">BACKEND  (Node / Express)</span>   :3001                      <span class="c-gray">│</span>
+<span class="c-gray">│</span>                                                                   <span class="c-gray">│</span>
+<span class="c-gray">│</span>  /customers  /campaigns  /segments  /analytics                   <span class="c-gray">│</span>
+<span class="c-gray">│</span>  /loyalty    /offers     /journeys  /personas                    <span class="c-gray">│</span>
+<span class="c-gray">│</span>  /products   /agent      /webhooks                               <span class="c-gray">│</span>
+<span class="c-gray">│</span>  <span class="c-green">/whatsapp</span>   <span class="c-amber">/monitor</span>                                           <span class="c-gray">│</span>
+<span class="c-gray">└───────┬──────────────────────┬────────────────┬────────────────────┘</span>
+        <span class="c-gray">│</span> POST /run             <span class="c-gray">│</span> webhooks       <span class="c-gray">│</span> proxy
+        <span class="c-gray">▼</span>                     <span class="c-gray">▼</span>               <span class="c-gray">▼</span>
+<span class="c-gray">┌───────────────┐  ┌────────────────────┐  <span class="c-green">┌─────────────────────┐</span>
+<span class="c-gray">│</span> <span class="c-purple">AI SERVICE</span>     <span class="c-gray">│</span>  <span class="c-gray">│</span> <span class="c-amber">CHANNEL SERVICE</span>     <span class="c-gray">│</span>  <span class="c-green">│ WHATSAPP SERVICE    │</span>
+<span class="c-gray">│</span>  FastAPI :8000 <span class="c-gray">│</span>  <span class="c-gray">│</span>  Express :3002      <span class="c-gray">│</span>  <span class="c-green">│  Node :3003         │</span>
+<span class="c-gray">│</span>                <span class="c-gray">│</span>  <span class="c-gray">│</span>                    <span class="c-gray">│</span>  <span class="c-green">│  Baileys QR login   │</span>
+<span class="c-gray">│</span> Campaign graph <span class="c-gray">│</span>  <span class="c-gray">│</span> Simulates delivery <span class="c-gray">│</span>  <span class="c-green">│  Real WA sends      │</span>
+<span class="c-gray">│</span> Monitor graph  <span class="c-gray">│</span>  <span class="c-gray">│</span> queued→converted   <span class="c-gray">│</span>  <span class="c-green">│  Session persist    │</span>
+<span class="c-gray">│</span> /run           <span class="c-gray">│</span>  <span class="c-gray">│</span> (fallback if WA    <span class="c-gray">│</span>  <span class="c-green">│  Socket.io QR push  │</span>
+<span class="c-gray">│</span> /monitor/run   <span class="c-gray">│</span>  <span class="c-gray">│</span>  disconnected)     <span class="c-gray">│</span>  <span class="c-green">└─────────────────────┘</span>
+<span class="c-gray">└───────────────┘</span>  <span class="c-gray">└────────────────────┘</span>
+        <span class="c-gray">│</span>
+<span class="c-gray">┌───────▼─────────┐  <span class="c-cyan">┌────────────────────┐</span>
+<span class="c-gray">│</span> <span class="c-green">MongoDB</span>  :27017  <span class="c-gray">│</span>  <span class="c-cyan">│ Qdrant</span>  :6333      <span class="c-gray">│</span>
+<span class="c-gray">│</span> 14 collections  <span class="c-gray">│</span>  <span class="c-cyan">│ 5 vector colls     │</span>
+<span class="c-gray">└─────────────────┘</span>  <span class="c-cyan">└────────────────────┘</span>
       </div>
 
       <h3>Communication Patterns</h3>
@@ -576,6 +582,8 @@
           <tr><td><strong>Channel Service</strong></td><td>Backend</td><td><code>HTTP POST</code></td><td>Delivery webhooks (delivered/opened/clicked)</td></tr>
           <tr><td><strong>AI Service</strong></td><td>MongoDB</td><td><code>pymongo</code></td><td>Direct queries — customer data, campaigns</td></tr>
           <tr><td><strong>AI Service</strong></td><td>Qdrant</td><td><code>langchain-qdrant</code></td><td>Vector similarity search for RAG</td></tr>
+          <tr><td><strong>Channel Service</strong></td><td>WA Service</td><td><code>HTTP POST</code></td><td>WhatsApp sends — tries real, falls back to simulation</td></tr>
+          <tr><td><strong>Frontend</strong></td><td>WA Service</td><td><code>Socket.io</code></td><td>Live QR code + connection status events</td></tr>
         </tbody>
       </table>
     </div>
@@ -605,6 +613,7 @@
           <tr><td><strong>Databases</strong></td><td><code>MongoDB 7</code></td><td>Operational data</td></tr>
           <tr><td></td><td><code>Qdrant</code></td><td>Vector storage for RAG</td></tr>
           <tr><td><strong>LLM</strong></td><td><code>Gemini 2.0 Flash</code></td><td>All agent reasoning (free tier via aistudio.google.com)</td></tr>
+          <tr><td><strong>WhatsApp</strong></td><td><code>@whiskeysockets/baileys</code></td><td>QR-scan login, real message delivery, session persistence</td></tr>
           <tr><td><strong>Infra</strong></td><td><code>Docker</code>, <code>docker compose</code></td><td>6-service containerisation</td></tr>
         </tbody>
       </table>
@@ -631,11 +640,11 @@
       <div class="agent-card">
         <div class="agent-header">
           <div class="agent-icon">🎯</div>
-          <div><div class="agent-name">Segmentation Agent</div><div class="agent-sub">segmentation.py · langchain-classic AgentExecutor</div></div>
+          <div><div class="agent-name">Segmentation Agent</div><div class="agent-sub">segmentation.py · Structured output + direct pipeline execution</div></div>
         </div>
         <div class="agent-body">
-          <p>Translates segment criteria into a MongoDB aggregation pipeline. Uses RAG to retrieve similar past segment definitions as few-shot examples. Runs the pipeline via <code>query_customers_by_pipeline</code> tool and saves result via <code>save_segment</code>.</p>
-          <div class="pill-row"><span class="pill">Tool calling loop</span><span class="pill-blue pill">RAG: segment_profiles</span><span class="pill-green pill">MongoDB execution</span></div>
+          <p>LLM generates a typed <code>SegmentPipeline</code> Pydantic model (stages[], segment_name, segment_description) via <code>with_structured_output()</code>. Pipeline executed directly against MongoDB — no unreliable AgentExecutor JSON parsing. Uses RAG over past segment definitions as few-shot examples. Graph exits early if 0 customers matched.</p>
+          <div class="pill-row"><span class="pill">Structured output</span><span class="pill-blue pill">RAG: segment_profiles</span><span class="pill-green pill">Direct MongoDB execution</span><span class="pill">Early-exit gate</span></div>
         </div>
       </div>
 
@@ -720,22 +729,33 @@
          <span class="c-gray">▼</span>                  <span class="c-gray">▼</span>                  <span class="c-gray">▼</span>
     <span class="c-green">segment</span>           <span class="c-amber">analyze</span>       <span class="c-cyan">create_journey</span>
          <span class="c-gray">│</span>                  <span class="c-gray">│</span>                  <span class="c-gray">│</span>
-  <span class="c-green">create_campaign</span>     <span class="c-gray">│</span>                 <span class="c-gray">END</span>
-         <span class="c-gray">│</span>           <span class="c-amber">optimize</span>
-  <span class="c-green">personalize</span>         <span class="c-gray">│</span>
-         <span class="c-gray">│</span>           <span class="c-gray">END</span>
-  <span class="c-green">select_channel</span>
+  <span class="c-gray">[ gate: 0 customers? ]  │</span>                 <span class="c-gray">END</span>
+  <span class="c-gray">YES: END  │ NO</span>      <span class="c-amber">optimize</span>
+         <span class="c-gray">▼</span>               <span class="c-gray">│</span>
+  <span class="c-green">create_campaign</span>     <span class="c-gray">END</span>
+         <span class="c-gray">│</span>
+  <span class="c-green">personalize</span>  ← real phone · promo code · persona signals
+         <span class="c-gray">│</span>
+  <span class="c-green">select_channel</span> ← AI affinity · engagement history
          <span class="c-gray">│</span>
     <span class="c-gray">[ gate: &gt;1000 msgs? ]</span>
      <span class="c-gray">YES /       \ NO</span>
-<span class="c-amber">await_approval</span>    <span class="c-blue">execute</span>
+<span class="c-amber">await_approval</span>    <span class="c-blue">execute</span>  ← bulk phone fetch · bulk DB insert
      <span class="c-gray">│</span>               <span class="c-gray">│</span>
      <span class="c-gray">└───────────────┤</span>
-                    <span class="c-blue">analyze</span>
+                    <span class="c-blue">analyze</span>  ← skip LLM if metrics=0
                     <span class="c-gray">│</span>
                   <span class="c-blue">optimize</span>
                     <span class="c-gray">│</span>
                    <span class="c-gray">END</span>
+
+<span class="c-cyan">── MONITOR GRAPH (separate) ──────────────────</span>
+<span class="c-gray">POST /monitor/run  →</span>  <span class="c-amber">campaign_monitor_node</span>
+                         <span class="c-gray">│ evaluates running campaigns</span>
+                         <span class="c-gray">│ checks thresholds per channel</span>
+                         <span class="c-gray">│ LLM diagnosis + suggested copy</span>
+                         <span class="c-gray">▼</span>
+                    <span class="c-amber">POST /api/monitor/webhook</span>  → MongoDB MonitorAlert
       </div>
 
       <h3>State Schema</h3>
@@ -840,7 +860,7 @@
     <div class="section">
       <a class="section-anchor" id="schemas"></a>
       <h2><span class="h2-num">07 —</span>MongoDB Schemas</h2>
-      <p>13 collections total. 7 core operational schemas + 6 Xeno-replica schemas.</p>
+      <p>14 collections total. 7 core operational schemas + 6 Xeno-replica schemas + 1 monitor alert schema.</p>
 
       <h3>Core Schemas</h3>
       <table>
@@ -878,6 +898,16 @@
   <span class="sc-key">engagement</span>: { <span class="sc-key">best_channel</span>: str, <span class="sc-key">best_send_hour</span>: 0-23, <span class="sc-key">avg_open_rate</span>: float },
   <span class="sc-key">predicted</span>: { <span class="sc-key">churn_probability</span>: 0-1, <span class="sc-key">offer_sensitivity</span>: 0-1, <span class="sc-key">clv_6m</span>: N },
   <span class="sc-key">persona_label</span>: <span class="sc-str">"Fashion-Forward Loyalist"</span> }
+
+<span class="c-gray">// MonitorAlert</span>
+{ <span class="sc-key">campaign_id</span>: ObjectId, <span class="sc-key">campaign_name</span>: String, <span class="sc-key">channel</span>: String,
+  <span class="sc-key">metric_failed</span>: <span class="sc-str">"open_rate|ctr|conversion_rate"</span>,
+  <span class="sc-key">actual_value</span>: Number, <span class="sc-key">expected_value</span>: Number,
+  <span class="sc-key">severity</span>: <span class="sc-str">"warning|critical"</span>,
+  <span class="sc-key">ai_diagnosis</span>: String,     <span class="c-gray">// LLM explanation of why it underperformed</span>
+  <span class="sc-key">suggested_copy</span>: String,   <span class="c-gray">// revised message body</span>
+  <span class="sc-key">recommended_action</span>: String, <span class="sc-key">non_openers_count</span>: Number,
+  <span class="sc-key">status</span>: <span class="sc-str">"pending|applied|dismissed"</span>, <span class="sc-key">created_at</span>: Date }
       </div>
     </div>
 
@@ -908,10 +938,24 @@
       <div class="endpoint"><span class="method method-get">GET</span><div><div class="ep-path">/api/analytics/roi</div><div class="ep-desc">Per-campaign ROI: revenue_attributed / (sent × ₹0.5 estimated cost).</div></div></div>
       <div class="endpoint"><span class="method method-get">GET</span><div><div class="ep-path">/api/analytics/rfm-distribution</div><div class="ep-desc">Segment counts for RFM donut chart on dashboard.</div></div></div>
 
+      <h3>WhatsApp (proxy to :3003)</h3>
+      <div class="endpoint"><span class="method method-get">GET</span><div><div class="ep-path">/api/whatsapp/status</div><div class="ep-desc">WhatsApp session status: <code>{ status, phone, connected_at }</code>.</div></div></div>
+      <div class="endpoint"><span class="method method-get">GET</span><div><div class="ep-path">/api/whatsapp/qr</div><div class="ep-desc">Latest QR code as base64 image. Refresh until status = connected.</div></div></div>
+      <div class="endpoint"><span class="method method-post">POST</span><div><div class="ep-path">/api/whatsapp/disconnect</div><div class="ep-desc">Logout and clear Baileys auth state (requires re-scan).</div></div></div>
+
+      <h3>Campaign Monitor</h3>
+      <div class="endpoint"><span class="method method-get">GET</span><div><div class="ep-path">/api/monitor/alerts</div><div class="ep-desc">Paginated alert list. Filters: <code>?status=pending|applied|dismissed</code>.</div></div></div>
+      <div class="endpoint"><span class="method method-post">POST</span><div><div class="ep-path">/api/monitor/run</div><div class="ep-desc">Trigger a monitor run. Forwards to AI service; responds 202 immediately.</div></div></div>
+      <div class="endpoint"><span class="method method-post">POST</span><div><div class="ep-path">/api/monitor/alerts/:id/apply</div><div class="ep-desc">Apply suggestion: resend to non-openers with suggested_copy via channel service.</div></div></div>
+      <div class="endpoint"><span class="method method-patch">PATCH</span><div><div class="ep-path">/api/monitor/alerts/:id/dismiss</div><div class="ep-desc">Mark alert dismissed. No resend.</div></div></div>
+      <div class="endpoint"><span class="method method-post">POST</span><div><div class="ep-path">/api/monitor/webhook</div><div class="ep-desc">AI service posts monitor results here after each run. Saves MonitorAlert docs + emits Socket.io <code>monitor:alerts</code>.</div></div></div>
+
       <h3>AI Service (port 8000)</h3>
-      <div class="endpoint"><span class="method method-post">POST</span><div><div class="ep-path">/run</div><div class="ep-desc">Start LangGraph execution. Runs in background thread.</div></div></div>
+      <div class="endpoint"><span class="method method-post">POST</span><div><div class="ep-path">/run</div><div class="ep-desc">Start LangGraph campaign execution. Runs in background thread.</div></div></div>
       <div class="endpoint"><span class="method method-get">GET</span><div><div class="ep-path">/run/:session_id/status</div><div class="ep-desc">Current graph state snapshot.</div></div></div>
       <div class="endpoint"><span class="method method-post">POST</span><div><div class="ep-path">/run/:session_id/resume</div><div class="ep-desc">Resume after approval gate. Calls compiled_graph.update_state().</div></div></div>
+      <div class="endpoint"><span class="method method-post">POST</span><div><div class="ep-path">/monitor/run</div><div class="ep-desc">Invoke compiled_monitor graph. Fire-and-forget (202). Posts results to backend webhook.</div></div></div>
+      <div class="endpoint"><span class="method method-get">GET</span><div><div class="ep-path">/monitor/results</div><div class="ep-desc">Last monitor run results cached in memory.</div></div></div>
       <div class="endpoint"><span class="method method-post">POST</span><div><div class="ep-path">/rag/ingest</div><div class="ep-desc">Manually add document to a Qdrant collection.</div></div></div>
     </div>
 
@@ -1047,10 +1091,111 @@
       </div>
     </div>
 
-    <!-- ── 14. QUICKSTART ── -->
+    <!-- ── 14. WHATSAPP INTEGRATION ── -->
+    <div class="section">
+      <a class="section-anchor" id="whatsapp"></a>
+      <h2><span class="h2-num">14 —</span>WhatsApp Integration</h2>
+
+      <p>Real WhatsApp delivery via <strong style="color:var(--text)">@whiskeysockets/baileys</strong> — no Puppeteer, no Meta Business API. QR-scan login, session persisted to disk, survives service restarts.</p>
+
+      <h3>Architecture</h3>
+      <div class="arch-box">
+<span class="c-cyan">Frontend (/whatsapp)</span>  ──Socket.io──►  <span class="c-green">whatsapp-service :3003</span>
+                                              <span class="c-gray">│ Baileys WA client</span>
+                                              <span class="c-gray">│ auth_info_baileys/ (session)</span>
+<span class="c-amber">Backend :3001</span>  ──proxy──►  <span class="c-gray">GET /status · GET /qr · POST /disconnect</span>
+<span class="c-amber">channel-service :3002</span>  ──►  <span class="c-green">POST /send</span>  ← real phone number E.164
+                              <span class="c-gray">↑ fallback to simulation if :3003 unreachable</span>
+      </div>
+
+      <h3>QR Login Flow</h3>
+      <ol class="step-list" style="counter-reset: none;">
+        <li><div class="step-n">1</div><div class="step-text">Start whatsapp-service → Baileys emits <code>whatsapp:qr</code> via Socket.io</div></li>
+        <li><div class="step-n">2</div><div class="step-text">Frontend <code>/whatsapp</code> page displays QR image (base64)</div></li>
+        <li><div class="step-n">3</div><div class="step-text">Scan with phone → WhatsApp → Settings → Linked Devices → Link Device</div></li>
+        <li><div class="step-n">4</div><div class="step-text">Baileys emits <code>whatsapp:ready</code> with connected phone number → status badge turns green</div></li>
+        <li><div class="step-n">5</div><div class="step-text">Session saved to <code>./auth_info_baileys/</code> — survives restarts, no re-scan needed</div></li>
+      </ol>
+
+      <h3>Phone Number Normalization</h3>
+      <p>Customer phones stored as 10-digit Indian strings (<code>"9876543210"</code>). Baileys needs E.164 JID format.</p>
+      <pre><code>// whatsapp-service/src/utils/phone.js
+function toWhatsAppJid(phone) {
+  const digits = phone.replace(/\D/g, "");
+  const e164 = digits.length === 10 ? `91${digits}` : digits;
+  return `${e164}@s.whatsapp.net`;
+}</code></pre>
+
+      <h3>Channel Service Routing</h3>
+      <p>When <code>channel === "whatsapp"</code> and the execution node has a real phone, it sends to <code>POST /send</code> on the WhatsApp service. On <code>ECONNREFUSED</code> or non-200, falls back to channel-service simulation — so the rest of the pipeline is unaffected when WhatsApp service is offline.</p>
+
+      <div class="callout callout-amber">
+        <div class="callout-icon">📱</div>
+        <p><strong>Real sends require a linked WhatsApp account.</strong> Sessions expire if the linked device is removed from WhatsApp settings. The service auto-reconnects on restart if <code>auth_info_baileys/</code> exists.</p>
+      </div>
+    </div>
+
+    <!-- ── 15. CAMPAIGN MONITOR ── -->
+    <div class="section">
+      <a class="section-anchor" id="monitor"></a>
+      <h2><span class="h2-num">15 —</span>Campaign Monitor</h2>
+
+      <p>Autonomous agent that watches running campaigns, detects underperformance, and generates AI-powered fix suggestions — all stored as <code>MonitorAlert</code> docs and surfaced in real-time via Socket.io.</p>
+
+      <h3>Performance Thresholds</h3>
+      <table>
+        <thead><tr><th>Channel</th><th>Min Open Rate</th><th>Min CTR</th><th>Min Conversion</th></tr></thead>
+        <tbody>
+          <tr><td><strong>WhatsApp</strong></td><td>30%</td><td>8%</td><td>2%</td></tr>
+          <tr><td><strong>Email</strong></td><td>15%</td><td>2%</td><td>0.8%</td></tr>
+          <tr><td><strong>SMS</strong></td><td>20%</td><td>4%</td><td>1%</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Monitor Graph Flow</h3>
+      <div class="arch-box">
+<span class="c-gray">POST /monitor/run  →</span>  <span class="c-amber">campaign_monitor_node</span>
+                        <span class="c-gray">│</span>
+                        <span class="c-gray">│ 1. Fetch campaigns with status="running"</span>
+                        <span class="c-gray">│ 2. Aggregate funnel metrics per campaign/channel</span>
+                        <span class="c-gray">│ 3. Compare to THRESHOLDS[channel]</span>
+                        <span class="c-gray">│ 4. Underperforming → LLM generates:</span>
+                        <span class="c-gray">│      ai_diagnosis + suggested_copy</span>
+                        <span class="c-gray">│      recommended_action + severity</span>
+                        <span class="c-gray">│ 5. Save MonitorAlert to MongoDB</span>
+                        <span class="c-gray">▼</span>
+                   <span class="c-green">POST /api/monitor/webhook</span>
+                        <span class="c-gray">│</span>
+                        <span class="c-gray">▼</span>
+            <span class="c-cyan">Socket.io  monitor:alerts  →  Frontend toast + alert list</span>
+      </div>
+
+      <h3>Severity Levels</h3>
+      <table>
+        <thead><tr><th>Severity</th><th>Trigger</th><th>Example</th></tr></thead>
+        <tbody>
+          <tr><td><strong style="color:var(--amber)">warning</strong></td><td>Metric below threshold but &gt; 50% of threshold</td><td>WhatsApp open rate 18% (threshold 30%)</td></tr>
+          <tr><td><strong style="color:var(--red)">critical</strong></td><td>Metric &lt; 50% of threshold</td><td>WhatsApp open rate 8% (threshold 30%)</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Alert Actions</h3>
+      <div class="card-grid">
+        <div class="card" style="border-left: 3px solid var(--green)">
+          <h4>Apply &amp; Resend</h4>
+          <p>Finds non-openers in the original campaign segment, substitutes <code>suggested_copy</code>, dispatches via the same channel. Alert status → <code>applied</code>.</p>
+        </div>
+        <div class="card" style="border-left: 3px solid var(--faint)">
+          <h4>Dismiss</h4>
+          <p>Marks alert <code>dismissed</code>. No resend. Still visible in the dismissed filter tab for post-mortem review.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 16. QUICKSTART ── -->
     <div class="section">
       <a class="section-anchor" id="quickstart"></a>
-      <h2><span class="h2-num">14 —</span>Quick Start</h2>
+      <h2><span class="h2-num">16 —</span>Quick Start</h2>
 
       <div class="callout callout-green">
         <div class="callout-icon">⚡</div>
@@ -1083,26 +1228,33 @@
         <li>
           <div class="step-n">4</div>
           <div class="step-text">
+            <strong>WhatsApp Service</strong>
+            <p><code>cd whatsapp-service &amp;&amp; npm install &amp;&amp; npm run dev</code> → :3003 — optional, enables real WhatsApp sends</p>
+          </div>
+        </li>
+        <li>
+          <div class="step-n">5</div>
+          <div class="step-text">
             <strong>AI Service</strong>
             <p><code>cd ai-service &amp;&amp; pip install -r requirements.txt &amp;&amp; uvicorn app.main:app --reload --port 8000</code></p>
           </div>
         </li>
         <li>
-          <div class="step-n">5</div>
+          <div class="step-n">6</div>
           <div class="step-text">
             <strong>Frontend</strong>
             <p><code>cd frontend &amp;&amp; npm install &amp;&amp; npm run dev</code> → :5173</p>
           </div>
         </li>
         <li>
-          <div class="step-n">6</div>
+          <div class="step-n">8</div>
           <div class="step-text">
             <strong>Seed data</strong>
             <p><code>cd scripts/seed &amp;&amp; npm install mongoose dotenv &amp;&amp; node seed_customers.js &amp;&amp; node seed_orders.js &amp;&amp; node seed_products.js &amp;&amp; node seed_loyalty.js &amp;&amp; node seed_personas.js &amp;&amp; node seed_offers.js &amp;&amp; node seed_journeys.js</code></p>
           </div>
         </li>
         <li>
-          <div class="step-n">7</div>
+          <div class="step-n">9</div>
           <div class="step-text">
             <strong>Seed Qdrant</strong>
             <p><code>python scripts/seed/seed_qdrant.py</code></p>
@@ -1118,16 +1270,17 @@
           <tr><td><strong>Backend API</strong></td><td><code>http://localhost:3001</code></td></tr>
           <tr><td><strong>AI Service</strong></td><td><code>http://localhost:8000</code></td></tr>
           <tr><td><strong>Channel Service</strong></td><td><code>http://localhost:3002</code></td></tr>
+          <tr><td><strong>WhatsApp Service</strong></td><td><code>http://localhost:3003</code> — <em>Baileys WA gateway, optional</em></td></tr>
           <tr><td><strong>Qdrant Dashboard</strong></td><td><code>http://localhost:6333/dashboard</code></td></tr>
           <tr><td><strong>MongoDB</strong></td><td><code>mongodb://localhost:27017/crm</code></td></tr>
         </tbody>
       </table>
     </div>
 
-    <!-- ── 15. ENV VARS ── -->
+    <!-- ── 17. ENV VARS ── -->
     <div class="section">
       <a class="section-anchor" id="envvars"></a>
-      <h2><span class="h2-num">15 —</span>Environment Variables</h2>
+      <h2><span class="h2-num">17 —</span>Environment Variables</h2>
 
       <h3>backend/.env</h3>
       <pre><code>MONGODB_URI=mongodb://localhost:27017/crm
@@ -1156,12 +1309,17 @@ CLICK_RATE=0.25
 CONVERT_RATE=0.09
 MIN_DELIVERY_DELAY_MS=1000
 MAX_DELIVERY_DELAY_MS=5000</code></pre>
+
+      <h3>whatsapp-service/.env</h3>
+      <pre><code>PORT=3003
+BACKEND_URL=http://localhost:3001
+# No credentials — auth handled by Baileys QR scan + auth_info_baileys/ folder</code></pre>
     </div>
 
-    <!-- ── 16. SEED ── -->
+    <!-- ── 18. SEED ── -->
     <div class="section">
       <a class="section-anchor" id="seed"></a>
-      <h2><span class="h2-num">16 —</span>Seed Data</h2>
+      <h2><span class="h2-num">18 —</span>Seed Data</h2>
 
       <table>
         <thead><tr><th>Script</th><th>What it creates</th></tr></thead>

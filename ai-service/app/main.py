@@ -7,6 +7,7 @@ from typing import Optional
 
 from app.graph.graph import compiled_graph
 from app.graph.state import CRMAgentState
+from app.graph.monitor_graph import compiled_monitor
 from app.rag.ingestion import ingest_document, ingest_documents
 from app.utils.callbacks import post_progress
 from app.config import settings
@@ -142,6 +143,36 @@ async def resume_graph(session_id: str, req: ResumeRequest, background_tasks: Ba
 async def rag_ingest(req: IngestRequest):
     ingest_document(req.collection, req.text, req.metadata)
     return {"status": "ingested", "collection": req.collection}
+
+
+_last_monitor_results: dict = {}
+
+
+def run_monitor_background():
+    global _last_monitor_results
+    try:
+        result = compiled_monitor.invoke({"alerts": [], "monitor_ran_at": ""})
+        _last_monitor_results = result
+        alerts = result.get("alerts", [])
+        if alerts:
+            with httpx.Client(timeout=10.0) as client:
+                client.post(
+                    f"{settings.backend_url}/api/monitor/webhook",
+                    json={"alerts": alerts, "ran_at": result.get("monitor_ran_at", "")},
+                )
+    except Exception as e:
+        _last_monitor_results = {"error": str(e), "alerts": []}
+
+
+@app.post("/monitor/run", status_code=202)
+async def run_monitor(background_tasks: BackgroundTasks):
+    background_tasks.add_task(run_monitor_background)
+    return {"status": "started", "message": "Monitor running in background"}
+
+
+@app.get("/monitor/results")
+async def get_monitor_results():
+    return _last_monitor_results
 
 
 @app.get("/health")

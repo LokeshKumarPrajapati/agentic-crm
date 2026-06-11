@@ -6,7 +6,36 @@ from app.prompts.campaign_creation_prompt import CAMPAIGN_CREATION_PROMPT
 from app.graph.state import CRMAgentState
 from app.tools.mongo_tools import save_campaign
 from app.tools.vector_tools import search_past_campaigns, search_brand_voice
+from app.tools.offer_tools import get_active_offers
 from app.utils.callbacks import post_progress
+
+_GOAL_TAG = {
+    "re-engage": "churned",
+    "winback": "churned",
+    "loyalty": "vip",
+    "upsell": "vip",
+    "welcome": "new",
+    "announce": "",
+}
+
+
+def _pick_offer_text(goal: str, channel: str) -> str:
+    tag = _GOAL_TAG.get(goal.lower(), "")
+    raw = get_active_offers.invoke({"tags": tag, "channel": channel})
+    try:
+        offers = json.loads(raw)
+        if not isinstance(offers, list) or not offers:
+            return "an exclusive offer"
+        o = offers[0]
+        if o["type"] == "percentage":
+            return f"{int(o['value'])}% OFF your next purchase"
+        if o["type"] == "fixed":
+            return f"₹{int(o['value'])} off your next order"
+        if o["type"] == "points_multiplier":
+            return f"{int(o['value'])}x loyalty points"
+        return o.get("description", "an exclusive offer")
+    except Exception:
+        return "an exclusive discount just for you"
 
 
 def campaign_creation_node(state: CRMAgentState) -> dict:
@@ -40,12 +69,15 @@ def campaign_creation_node(state: CRMAgentState) -> dict:
 
     chain = CAMPAIGN_CREATION_PROMPT | llm.with_structured_output(CampaignCopy)
 
+    # Fetch real offer from DB instead of hardcoded text
+    offer_text = _pick_offer_text(goal, channel)
+
     copy: CampaignCopy = chain.invoke({
         "goal": goal,
         "channel": channel,
         "segment_description": segment.get("description", segment_name),
         "segment_size": segment_size,
-        "offer": "20% discount",  # TODO: derive from plan
+        "offer": offer_text,
         "rag_context": rag_context,
         "brand_voice": brand_voice if isinstance(brand_voice, str) else "",
     })

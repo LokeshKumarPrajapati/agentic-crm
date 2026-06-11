@@ -61,6 +61,14 @@ def route_from_supervisor(state: CRMAgentState) -> str:
     return END
 
 
+def post_segment_gate(state: CRMAgentState) -> str:
+    """Skip full pipeline if segment found 0 customers."""
+    segment = state.get("segment", {})
+    if segment.get("size", 0) == 0:
+        return END
+    return "create_campaign"
+
+
 def pre_execution_gate(state: CRMAgentState) -> str:
     messages = state.get("personalized_messages", [])
     if len(messages) > 1000:
@@ -96,7 +104,11 @@ def build_graph() -> StateGraph:
         },
     )
 
-    graph.add_edge("segment", "create_campaign")
+    graph.add_conditional_edges(
+        "segment",
+        post_segment_gate,
+        {"create_campaign": "create_campaign", END: END},
+    )
     graph.add_edge("create_campaign", "personalize")
     graph.add_edge("personalize", "select_channel")
 

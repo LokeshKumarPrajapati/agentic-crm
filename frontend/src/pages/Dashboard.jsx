@@ -4,9 +4,11 @@ import {
   Bot, Activity, Circle, RefreshCw, Cpu, GitBranch, Layers,
   ShoppingBag, Mail, Radio, Settings, PieChart, Sparkles, CheckCircle,
 } from "lucide-react";
-import { analyticsApi, agentApi } from "../services/api";
+import { analyticsApi, agentApi, segmentsApi } from "../services/api";
+import personasApi from "../services/personasApi";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  PieChart as RechartsPie, Pie, Cell,
 } from "recharts";
 
 // ─── KPI card ────────────────────────────────────────────────────────────────
@@ -201,13 +203,24 @@ function AgentFleetPanel() {
 }
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
+const RFM_COLORS = {
+  Champions: "#a855f7", Loyal: "#3b82f6", "At Risk": "#f59e0b",
+  "Cannot Lose": "#ef4444", Lost: "#6b7280", New: "#06b6d4", Potential: "#10b981",
+};
+
 export default function Dashboard() {
   const [overview, setOverview] = useState(null);
   const [campaignPerf, setCampaignPerf] = useState([]);
+  const [segmentCount, setSegmentCount] = useState(null);
+  const [rfmDist, setRfmDist] = useState([]);
+  const [bizKpis, setBizKpis] = useState(null);
 
   useEffect(() => {
     analyticsApi.overview().then((r) => setOverview(r.data)).catch(() => {});
     analyticsApi.campaigns({ days: 30 }).then((r) => setCampaignPerf(r.data.slice(0, 8))).catch(() => {});
+    analyticsApi.businessKpis().then((r) => setBizKpis(r.data)).catch(() => {});
+    segmentsApi.list().then((r) => setSegmentCount(Array.isArray(r.data) ? r.data.length : 0)).catch(() => {});
+    personasApi.distribution().then((d) => setRfmDist(d || [])).catch(() => {});
   }, []);
 
   return (
@@ -228,20 +241,41 @@ export default function Dashboard() {
       {/* AI Agent Fleet Panel */}
       <AgentFleetPanel />
 
-      {/* ROI banner */}
+      {/* ROI banner — real computed values */}
       <div className="bg-gradient-to-r from-purple-900/40 to-blue-900/40 border border-purple-700/40 rounded-xl p-5">
         <div className="grid grid-cols-3 gap-6 text-center">
           <div>
-            <div className="text-3xl font-bold text-white">60x</div>
-            <div className="text-sm text-purple-300 mt-1">Avg ROI</div>
+            <div className="text-3xl font-bold text-white">
+              {bizKpis ? (bizKpis.avg_roi > 0 ? `${bizKpis.avg_roi}x` : "—") : "…"}
+            </div>
+            <div className="text-sm text-purple-300 mt-1">Avg Campaign ROI</div>
+            {bizKpis?.total_converted > 0 && (
+              <div className="text-xs text-purple-500 mt-0.5">
+                {bizKpis.total_converted} conversions · ₹{bizKpis.est_revenue?.toLocaleString()} est. revenue
+              </div>
+            )}
           </div>
           <div>
-            <div className="text-3xl font-bold text-white">+12%</div>
-            <div className="text-sm text-purple-300 mt-1">Repeat Sales</div>
+            <div className="text-3xl font-bold text-white">
+              {bizKpis ? (bizKpis.repeat_sales_pct > 0 ? `${bizKpis.repeat_sales_pct}%` : "—") : "…"}
+            </div>
+            <div className="text-sm text-purple-300 mt-1">Repeat Buyers</div>
+            {bizKpis?.repeat_buyer_count > 0 && (
+              <div className="text-xs text-purple-500 mt-0.5">
+                {bizKpis.repeat_buyer_count?.toLocaleString()} customers · 2+ orders
+              </div>
+            )}
           </div>
           <div>
-            <div className="text-3xl font-bold text-white">3-5x</div>
-            <div className="text-sm text-purple-300 mt-1">VIP Customer Spend</div>
+            <div className="text-3xl font-bold text-white">
+              {bizKpis ? (bizKpis.vip_spend_multiplier > 0 ? `${bizKpis.vip_spend_multiplier}x` : "—") : "…"}
+            </div>
+            <div className="text-sm text-purple-300 mt-1">VIP vs Avg Spend</div>
+            {bizKpis?.vip_customer_count > 0 && (
+              <div className="text-xs text-purple-500 mt-0.5">
+                {bizKpis.vip_customer_count} Gold/Platinum customers
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -282,8 +316,37 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <KpiCard icon={Megaphone} label="Total Campaigns"  value={overview?.total_campaigns}  color="purple" />
         <KpiCard icon={Zap}       label="Active Campaigns" value={overview?.active_campaigns}  color="green"  />
-        <KpiCard icon={Target}    label="Segments"         value="—" sub="Run seed to populate" color="blue" />
+        <KpiCard icon={Target}    label="Segments"         value={segmentCount ?? "—"}         color="blue"   sub={segmentCount == null ? "Loading..." : "active segments"} />
       </div>
+
+      {/* RFM segment distribution mini chart */}
+      {rfmDist.length > 0 && (
+        <div className="bg-gray-800 rounded-xl border border-gray-700 p-5">
+          <h2 className="text-base font-semibold text-white mb-4">RFM Customer Segments</h2>
+          <div className="flex items-center gap-6">
+            <ResponsiveContainer width={200} height={160}>
+              <RechartsPie>
+                <Pie data={rfmDist} dataKey="count" nameKey="segment" cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={2}>
+                  {rfmDist.map((d) => <Cell key={d.segment} fill={RFM_COLORS[d.segment] || "#6b7280"} />)}
+                </Pie>
+                <Tooltip
+                  contentStyle={{ backgroundColor: "#111827", border: "1px solid #374151", borderRadius: 8, fontSize: 12 }}
+                  formatter={(v, n) => [`${v} customers`, n]}
+                />
+              </RechartsPie>
+            </ResponsiveContainer>
+            <div className="grid grid-cols-2 gap-x-8 gap-y-2 flex-1">
+              {rfmDist.map((d) => (
+                <div key={d.segment} className="flex items-center gap-2 text-xs">
+                  <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: RFM_COLORS[d.segment] || "#6b7280" }} />
+                  <span className="text-gray-300 flex-1">{d.segment}</span>
+                  <span className="text-gray-400 font-semibold">{d.count}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

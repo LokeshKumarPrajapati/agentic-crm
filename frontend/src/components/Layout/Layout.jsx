@@ -11,24 +11,27 @@ import {
   Menu,
   X,
   GitBranch,
-  Tag,
+  UserCircle2,
+  Zap,
+  MessageCircle,
+  AlertTriangle,
 } from "lucide-react";
 
 const CRM_NAV = [
-  { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { to: "/customers", icon: Users, label: "Customers" },
-  { to: "/segments", icon: PieChart, label: "Segments" },
-  { to: "/campaigns", icon: Megaphone, label: "Campaigns" },
-  { to: "/analytics", icon: BarChart3, label: "Analytics" },
+  { to: "/dashboard",    icon: LayoutDashboard, label: "Dashboard" },
+  { to: "/customers",    icon: Users,           label: "Customers" },
+  { to: "/segments",     icon: PieChart,        label: "Segments" },
+  { to: "/campaigns",    icon: Megaphone,       label: "Campaigns" },
+  { to: "/analytics",    icon: BarChart3,       label: "Analytics" },
 ];
 
-const OFFERS_NAV = [
-  { to: "/offers", icon: Tag, label: "Offers" },
-];
-
-const AUTOMATION_NAV = [
-  { to: "/journeys", icon: GitBranch, label: "Journey Builder" },
-  { to: "/agent", icon: Bot, label: "AI Agent" },
+const AI_NAV = [
+  { to: "/ai-decisioning", icon: Zap,           label: "AI Decisioning" },
+  { to: "/monitor",        icon: AlertTriangle, label: "Campaign Monitor" },
+  { to: "/personas",       icon: UserCircle2,   label: "RFM Personas" },
+  { to: "/journeys",       icon: GitBranch,     label: "Journey Builder" },
+  { to: "/agent",          icon: Bot,           label: "AI Agent" },
+  { to: "/whatsapp",       icon: MessageCircle, label: "WhatsApp Setup" },
 ];
 
 function NavSection({ label, items, collapsed }) {
@@ -65,36 +68,26 @@ export default function Layout({ children }) {
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-950">
-      {/* Sidebar */}
       <aside
         className={`flex flex-col bg-gray-900 border-r border-gray-800 transition-all duration-200 ${
           collapsed ? "w-16" : "w-56"
         }`}
       >
-        {/* Logo */}
         <div className="flex items-center gap-3 px-4 h-16 border-b border-gray-800">
           <div className="w-8 h-8 rounded-lg bg-purple-600 flex items-center justify-center flex-shrink-0">
             <Sparkles size={16} className="text-white" />
           </div>
-          {!collapsed && (
-            <span className="font-bold text-lg text-white">Zari CRM</span>
-          )}
-          <button
-            className="ml-auto text-gray-500 hover:text-gray-300"
-            onClick={() => setCollapsed(!collapsed)}
-          >
+          {!collapsed && <span className="font-bold text-lg text-white">Zari CRM</span>}
+          <button className="ml-auto text-gray-500 hover:text-gray-300" onClick={() => setCollapsed(!collapsed)}>
             {collapsed ? <Menu size={18} /> : <X size={18} />}
           </button>
         </div>
 
-        {/* Nav pillars */}
         <nav className="flex-1 py-2 space-y-0.5 px-2 overflow-y-auto">
           <NavSection label="CRM" items={CRM_NAV} collapsed={collapsed} />
-          <NavSection label="Offers" items={OFFERS_NAV} collapsed={collapsed} />
-          <NavSection label="Automation" items={AUTOMATION_NAV} collapsed={collapsed} />
+          <NavSection label="AI Intelligence" items={AI_NAV} collapsed={collapsed} />
         </nav>
 
-        {/* AI badge */}
         {!collapsed && (
           <div className="px-4 pb-4">
             <div className="rounded-lg bg-purple-900/40 border border-purple-700/40 p-3">
@@ -105,7 +98,6 @@ export default function Layout({ children }) {
         )}
       </aside>
 
-      {/* Main */}
       <main className="flex-1 overflow-auto">
         {children}
       </main>
